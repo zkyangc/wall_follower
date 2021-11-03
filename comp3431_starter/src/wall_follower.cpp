@@ -82,11 +82,11 @@ void WallFollower::callbackScan(const sensor_msgs::msg::LaserScan::SharedPtr sca
     
     float turn, drive;
     if (RangeAvgFront > 0.8){
-      turn = -3;
-      drive = 0.01;
+      turn = -1;
+      drive = 0;
     } else if (RangeAvgSide > 0.85) {
         turn = -0.3;
-        drive = 0.2;
+        drive = 0.1;
     } else if (XMaxSide == -INFINITY) {
         //RCLCPP_INFO(this->get_logger(), "Could not find wall, I'm looking, please don't get mad!!");
         // No hits beside robot, so turn that direction
@@ -109,14 +109,14 @@ void WallFollower::callbackScan(const sensor_msgs::msg::LaserScan::SharedPtr sca
 
         // drive2 = (XF - min) / (limit - min)  // Clipped to range (0..1)
         float drive2f = (XMinFront - MIN_APPROACH_DIST) / (MAX_APPROACH_DIST - MIN_APPROACH_DIST);
-        float drive2 = CLIP_0_1(drive2f) * 0.75;
+        float drive2 = CLIP_0_1(drive2f);
 
         // turn2 = (limit - XF) / (limit - min) // Clipped to range (0..1)
         float turn2f = (MAX_APPROACH_DIST - XMinFront) / (MAX_APPROACH_DIST - MIN_APPROACH_DIST);
         float turn2 = CLIP_0_1(turn2f);
 
         // turn = turn1 - turn2
-        turn = turn1 - turn2 - 0.1;
+        turn = turn1 - turn2 ;//- 0.01;
         
 
         // drive = drive1 * drive2
