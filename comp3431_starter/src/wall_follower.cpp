@@ -66,7 +66,7 @@ void WallFollower::callbackScan(const sensor_msgs::msg::LaserScan::SharedPtr sca
 				XMinFront = point.x;
 		}
         if ((side==LEFT && angle_d >= SIDE_ANGLE_START && angle_d < SIDE_ANGLE_END)){
-            if (*it < 0.8)
+            if (*it < 0.85)
                 RangeAvgSide++;
         }
         if ((side==LEFT && (angle_d <= FRONT_ANGLE_LEFT || angle_d > FRONT_ANGLE_RIGHT) )){
@@ -84,9 +84,9 @@ void WallFollower::callbackScan(const sensor_msgs::msg::LaserScan::SharedPtr sca
     if (RangeAvgFront > 0.8){
       turn = -3;
       drive = 0.01;
-    } else if (RangeAvgSide > 0.8) {
-        turn = -0.75;
-        drive = 0.5;
+    } else if (RangeAvgSide > 0.85) {
+        turn = -0.3;
+        drive = 0.2;
     } else if (XMaxSide == -INFINITY) {
         //RCLCPP_INFO(this->get_logger(), "Could not find wall, I'm looking, please don't get mad!!");
         // No hits beside robot, so turn that direction
