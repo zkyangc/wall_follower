@@ -3,6 +3,13 @@
 
 #define CLIP_0_1(X)         ((X) < 0?0:(X)>1?1:(X))
 
+#define PI                  3.1415926
+
+#define SIDE_ANGLE_START    30
+#define SIDE_ANGLE_END      150
+
+#define FRONT_ANGLE_LEFT    40
+#define FRONT_ANGLE_RIGHT   320
 
 WallFollower::WallFollower():Node("wall_follower") 
 {
@@ -32,19 +39,22 @@ void WallFollower::callbackScan(const sensor_msgs::msg::LaserScan::SharedPtr sca
 
 
 	float XMaxSide = -INFINITY, XMinFront = INFINITY, angle = scan->angle_min;
+	float RangeAvgSide = 0, RangeAvgFront = 0;
 	for(auto it = scan->ranges.begin(); it != scan->ranges.end(); ++it, angle += scan->angle_increment)
-	{
+	{   
+        float angle_d = angle * 180 / PI;
+
 		geometry_msgs::msg::Vector3 point;
 		point.x = cos(angle) * *it;
 		point.y = sin(angle) * *it;
 		point.z = 0;
-		if (fabs(point.x) <= ROBOT_RADIUS && fabs(point.y) <= MAX_SIDE_LIMIT) 
+		if (fabs(point.x) <= ROBOT_RADIUS_SIDE && fabs(point.y) <= MAX_SIDE_LIMIT) // point is on the side && NOT too far
 		{
-			if ((side == LEFT && point.y > 0) || (side == RIGHT && point.y < 0)) 
+			if ((side == LEFT && point.y > 0) || (side == RIGHT && point.y < 0)) // on the chosen side
 			{
 				// Point is beside the robot
 				if (point.x > XMaxSide)
-					XMaxSide = point.x;
+					XMaxSide = point.x; // max value on the heading direction
 			}
 		}
 
@@ -55,43 +65,64 @@ void WallFollower::callbackScan(const sensor_msgs::msg::LaserScan::SharedPtr sca
 			if (point.x < XMinFront)
 				XMinFront = point.x;
 		}
-	}
+        if ((side==LEFT && angle_d >= SIDE_ANGLE_START && angle_d < SIDE_ANGLE_END)){
+            if (*it < 0.8)
+                RangeAvgSide++;
+        }
+        if ((side==LEFT && (angle_d <= FRONT_ANGLE_LEFT || angle_d > FRONT_ANGLE_RIGHT) )){
+            if (*it < 1)
+                RangeAvgFront++;
+        }
+    }
 
+    RangeAvgSide = RangeAvgSide / (SIDE_ANGLE_END-SIDE_ANGLE_START);
+    RangeAvgFront = RangeAvgFront / (360 - FRONT_ANGLE_RIGHT + FRONT_ANGLE_LEFT);
+
+    RCLCPP_INFO(this->get_logger(), "XMaxSide: %.3f XMinFront: %.3f RangeAvgSide: %.3f RangeAvgFront: %.3f", XMaxSide, XMinFront, RangeAvgSide, RangeAvgFront);
+    
     float turn, drive;
-
-    if (XMaxSide == -INFINITY) {
-        RCLCPP_INFO(this->get_logger(), "Could not find wall, I'm looking, please don't get mad!!");
+    if (RangeAvgFront > 0.8){
+      turn = -3;
+      drive = 0.01;
+    } else if (RangeAvgSide > 0.8) {
+        turn = -0.75;
+        drive = 0.5;
+    } else if (XMaxSide == -INFINITY) {
+        //RCLCPP_INFO(this->get_logger(), "Could not find wall, I'm looking, please don't get mad!!");
         // No hits beside robot, so turn that direction
         turn = 1;
         drive = 0;
     } else if (XMinFront <= MIN_APPROACH_DIST) {
-        RCLCPP_INFO(this->get_logger(), "Could not find wall, I'm looking, please don't get mad!!");
+        //RCLCPP_INFO(this->get_logger(), "Could not find wall, I'm looking, please don't get mad!!");
         // Blocked side and front, so turn other direction
         turn = -1;
         drive = 0;
     } else {
         //RCLCPP_INFO(this->get_logger(), "going straight on!");
         // turn1 = (radius - XS) / 2*radius  // Clipped to range (0..1)
-        float turn1 = (ROBOT_RADIUS - XMaxSide) / (2 * ROBOT_RADIUS);
-        turn1 = CLIP_0_1(turn1);
+        float turn1f = (ROBOT_RADIUS_SIDE - XMaxSide) / (2 * ROBOT_RADIUS_SIDE);
+        float turn1 = CLIP_0_1(turn1f);
 
         // drive1 = (radius + XS) / 2*radius // Clipped to range (0..1)
-        float drive1 = (ROBOT_RADIUS + XMaxSide) / (2 * ROBOT_RADIUS);
-        drive1 = CLIP_0_1(drive1);
+        float drive1f = (ROBOT_RADIUS_SIDE + XMaxSide) / (2 * ROBOT_RADIUS_SIDE);
+        float drive1 = CLIP_0_1(drive1f);
 
         // drive2 = (XF - min) / (limit - min)  // Clipped to range (0..1)
-        float drive2 = (XMinFront - MIN_APPROACH_DIST) / (MAX_APPROACH_DIST - MIN_APPROACH_DIST);
-        drive2 = CLIP_0_1(drive2);
+        float drive2f = (XMinFront - MIN_APPROACH_DIST) / (MAX_APPROACH_DIST - MIN_APPROACH_DIST);
+        float drive2 = CLIP_0_1(drive2f) * 0.75;
 
         // turn2 = (limit - XF) / (limit - min) // Clipped to range (0..1)
-        float turn2 = (MAX_APPROACH_DIST - XMinFront) / (MAX_APPROACH_DIST - MIN_APPROACH_DIST);
-        turn2 = CLIP_0_1(turn2);
+        float turn2f = (MAX_APPROACH_DIST - XMinFront) / (MAX_APPROACH_DIST - MIN_APPROACH_DIST);
+        float turn2 = CLIP_0_1(turn2f);
 
         // turn = turn1 - turn2
-        turn = turn1 - turn2;
+        turn = turn1 - turn2 - 0.1;
+        
 
         // drive = drive1 * drive2
         drive = drive1 * drive2;
+        //RCLCPP_INFO(this->get_logger(), "turn1f %.2f , turn2f %.2f ", turn1f, turn2f);
+        //RCLCPP_INFO(this->get_logger(), "drive1f %.2f , drive2f %.2f\n", drive1f, drive2f);
     }
 
     if (side == RIGHT) {
@@ -105,7 +136,7 @@ void WallFollower::callbackScan(const sensor_msgs::msg::LaserScan::SharedPtr sca
     t.angular.x = t.angular.y = 0;
     t.angular.z = turn * MAX_TURN;
 
-    //RCLCPP_INFO(this->get_logger(), "Publishing velocities %.2f m/s, %.2f r/s\n", t.linear.x, t.angular.z);
+    RCLCPP_INFO(this->get_logger(), "Publishing velocities %.2f m/s, %.2f r/s\n", t.linear.x, t.angular.z);
     twistPub_->publish(t);
     stopped = false;
 
@@ -117,11 +148,11 @@ void WallFollower::callbackControl(const std_msgs::msg::String::SharedPtr comman
 	
 	std::string message = std::string{command->data};
 	if(message == "start") {
-		RCLCPP_INFO(this->get_logger(), "Alright, let's get this show on the road!!!");
+		//RCLCPP_INFO(this->get_logger(), "Alright, let's get this show on the road!!!");
 		paused = false;
 	}
 	else if(message == "stop") {
-		RCLCPP_INFO(this->get_logger(), "Stopping, don't forget to save that lovely map or it'll be lost forever!!!");
+		//RCLCPP_INFO(this->get_logger(), "Stopping, don't forget to save that lovely map or it'll be lost forever!!!");
 		paused = true;
 	}
 
