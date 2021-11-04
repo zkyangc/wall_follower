@@ -6,10 +6,10 @@
 #define PI                  3.1415926
 
 #define SIDE_ANGLE_START    30
-#define SIDE_ANGLE_END      150
+#define SIDE_ANGLE_END      135
 
 #define FRONT_ANGLE_LEFT    40
-#define FRONT_ANGLE_RIGHT   320
+#define FRONT_ANGLE_RIGHT   330
 
 WallFollower::WallFollower():Node("wall_follower") 
 {
@@ -66,7 +66,7 @@ void WallFollower::callbackScan(const sensor_msgs::msg::LaserScan::SharedPtr sca
 				XMinFront = point.x;
 		}
         if ((side==LEFT && angle_d >= SIDE_ANGLE_START && angle_d < SIDE_ANGLE_END)){
-            if (*it < 0.85)
+            if (*it < 0.75)
                 RangeAvgSide++;
         }
         if ((side==LEFT && (angle_d <= FRONT_ANGLE_LEFT || angle_d > FRONT_ANGLE_RIGHT) )){
@@ -81,12 +81,15 @@ void WallFollower::callbackScan(const sensor_msgs::msg::LaserScan::SharedPtr sca
     RCLCPP_INFO(this->get_logger(), "XMaxSide: %.3f XMinFront: %.3f RangeAvgSide: %.3f RangeAvgFront: %.3f", XMaxSide, XMinFront, RangeAvgSide, RangeAvgFront);
     
     float turn, drive;
-    if (RangeAvgFront > 0.8){
+    if (RangeAvgFront > 0.75){
       turn = -1;
       drive = 0;
     } else if (RangeAvgSide > 0.85) {
-        turn = -0.3;
+        turn = -0.5;
         drive = 0.1;
+    } else if (RangeAvgSide > 0.75) {
+        turn = -0.75;
+        drive = 1;
     } else if (XMaxSide == -INFINITY) {
         //RCLCPP_INFO(this->get_logger(), "Could not find wall, I'm looking, please don't get mad!!");
         // No hits beside robot, so turn that direction

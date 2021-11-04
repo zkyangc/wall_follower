@@ -16,7 +16,7 @@
 
 
 const std::string BASE_FRAME = std::string{"base_link"};
-const double MAX_SIDE_LIMIT = 0.6;     //0.50
+const double MAX_SIDE_LIMIT = 0.63;     //0.50
 const double MIN_APPROACH_DIST = 0.45;  //0.30
 const double MAX_APPROACH_DIST = 0.55;  //0.50
 
