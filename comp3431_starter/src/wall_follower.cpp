@@ -39,7 +39,7 @@ void WallFollower::callbackScan(const sensor_msgs::msg::LaserScan::SharedPtr sca
 
 
 	float XMaxSide = -INFINITY, XMinFront = INFINITY, angle = scan->angle_min;
-	float RangeAvgSide = 0, RangeAvgFront = 0;
+	float RangeSidePercentage = 0, RangeFrontPercentage = 0;
 	for(auto it = scan->ranges.begin(); it != scan->ranges.end(); ++it, angle += scan->angle_increment)
 	{   
         float angle_d = angle * 180 / PI;
@@ -67,27 +67,27 @@ void WallFollower::callbackScan(const sensor_msgs::msg::LaserScan::SharedPtr sca
 		}
         if ((side==LEFT && angle_d >= SIDE_ANGLE_START && angle_d < SIDE_ANGLE_END)){
             if (*it < 0.75)
-                RangeAvgSide++;
+                RangeSidePercentage++;
         }
         if ((side==LEFT && (angle_d <= FRONT_ANGLE_LEFT || angle_d > FRONT_ANGLE_RIGHT) )){
             if (*it < 1)
-                RangeAvgFront++;
+                RangeFrontPercentage++;
         }
     }
 
-    RangeAvgSide = RangeAvgSide / (SIDE_ANGLE_END-SIDE_ANGLE_START);
-    RangeAvgFront = RangeAvgFront / (360 - FRONT_ANGLE_RIGHT + FRONT_ANGLE_LEFT);
+    RangeSidePercentage = RangeSidePercentage / (SIDE_ANGLE_END-SIDE_ANGLE_START);
+    RangeFrontPercentage = RangeFrontPercentage / (360 - FRONT_ANGLE_RIGHT + FRONT_ANGLE_LEFT);
 
-    RCLCPP_INFO(this->get_logger(), "XMaxSide: %.3f XMinFront: %.3f RangeAvgSide: %.3f RangeAvgFront: %.3f", XMaxSide, XMinFront, RangeAvgSide, RangeAvgFront);
+    RCLCPP_INFO(this->get_logger(), "XMaxSide: %.3f XMinFront: %.3f RangeSidePercentage: %.3f RangeFrontPercentage: %.3f", XMaxSide, XMinFront, RangeSidePercentage, RangeFrontPercentage);
     
     float turn, drive;
-    if (RangeAvgFront > 0.75){
+    if (RangeFrontPercentage > 0.75){
       turn = -1;
       drive = 0;
-    } else if (RangeAvgSide > 0.85) {
+    } else if (RangeSidePercentage > 0.85) {
         turn = -0.5;
         drive = 0.1;
-    } else if (RangeAvgSide > 0.75) {
+    } else if (RangeSidePercentage > 0.75) {
         turn = -0.75;
         drive = 1;
     } else if (XMaxSide == -INFINITY) {
