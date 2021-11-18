@@ -157,6 +157,8 @@ void WallFollower::callbackControl(const std_msgs::msg::String::SharedPtr comman
 	else if(message == "stop") {
 		//RCLCPP_INFO(this->get_logger(), "Stopping, don't forget to save that lovely map or it'll be lost forever!!!");
 		paused = true;
+		system("gnome-terminal -- sh -c '. install/local_setup.bash;ros2 run nav2_map_server map_saver_cli -f map_house1'");
+		rclcpp::shutdown();
 	}
 
 }
